@@ -1,0 +1,11 @@
+name: iam-safe-defaults
+description: A Pulumi component library for creating secure IAM roles with safe defaults.
+runtime:
+  name: python
+  options:
+    toolchain: pip
+    virtualenv: venv
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-python
