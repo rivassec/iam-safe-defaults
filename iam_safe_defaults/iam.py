@@ -3,23 +3,17 @@ import pulumi
 import pulumi_aws as aws
 from typing import Iterable, List, Dict, Union, Optional
 
-# Sentinel distinguishing "caller did not pass permissions_boundary" from
-# "caller explicitly passed None". Allows create_safe_role to enforce a
-# boundary by default without breaking callers who intentionally opt out.
+# Sentinel distinguishing "not passed" from "explicitly None".
 _UNSET = object()
 
-# Action prefixes that are effectively admin when combined with wildcard.
-# Not exhaustive; the check looks at any "<service>:*" pattern, this list
-# is just for the high-severity admin-equivalent shapes.
 _ADMIN_EQUIVALENT_ACTIONS = {"*", "*:*", "iam:*", "sts:*"}
 
 
 def _assume_policy_has_wildcard_principal(assume_policy: str) -> bool:
-    """Return True if the trust policy grants AssumeRole to Principal: '*' or {'AWS': '*'}."""
+    """True if the trust policy grants AssumeRole to a wildcard principal."""
     try:
         doc = json.loads(assume_policy)
     except (ValueError, TypeError):
-        # If we can't parse, don't guess. Let AWS reject it at plan time.
         return False
     for statement in doc.get("Statement", []):
         if statement.get("Effect") != "Allow":
@@ -45,21 +39,7 @@ def create_safe_role(
     max_session_duration: int = 3600,
     opts: Optional[pulumi.ResourceOptions] = None,
 ) -> aws.iam.Role:
-    """
-    Create an IAM role with restrictive, secure defaults.
-
-    Safe-default behavior:
-
-    * ``permissions_boundary`` is required. Omit it and pass
-      ``allow_no_boundary=True`` to opt out explicitly; this forces callers
-      to acknowledge the broader blast radius rather than accept it by
-      accident.
-    * The ``assume_policy`` is rejected if it grants AssumeRole to
-      ``Principal: "*"`` or ``Principal: {"AWS": "*"}``. Opt out with
-      ``allow_wildcard_principal=True``.
-    * ``force_detach_policies=True`` lets Pulumi clean up policy
-      attachments on destroy.
-    """
+    """Create an IAM role with restrictive defaults; opt-outs raise unless toggled."""
     if permissions_boundary is _UNSET and not allow_no_boundary:
         raise ValueError(
             "create_safe_role requires permissions_boundary. "
@@ -94,16 +74,7 @@ def _iter_strs(value: Union[str, Iterable[str], None]) -> List[str]:
 
 
 def is_policy_overly_permissive(policy_doc: Dict) -> bool:
-    """
-    Return True if any Allow statement grants admin-equivalent access.
-
-    Flags:
-
-    * ``Action: "*"`` or ``Action: "<service>:*"`` (wildcard-suffix).
-    * ``Resource: "*"`` paired with an Action wildcard.
-    * ``NotAction`` / ``NotResource`` (these invert the rule and nearly
-      always mean more permission than the author intended).
-    """
+    """True if any Allow statement grants admin-equivalent access."""
     for statement in policy_doc.get("Statement", []):
         if statement.get("Effect") != "Allow":
             continue
@@ -114,15 +85,11 @@ def is_policy_overly_permissive(policy_doc: Dict) -> bool:
         actions = _iter_strs(statement.get("Action"))
         resources = _iter_strs(statement.get("Resource"))
 
-        # Any action ending with ":*" or the bare "*" is wildcard-suffix.
         action_is_wildcard = any(a == "*" or a.endswith(":*") for a in actions)
         resource_is_wildcard = any(r == "*" for r in resources)
 
-        # Wildcard action alone is overly permissive regardless of resource.
         if action_is_wildcard:
             return True
-        # Wildcard resource with specific actions is often legitimate (e.g.
-        # logging); only flag if both sides are unconstrained.
         if resource_is_wildcard and not actions:
             return True
     return False
@@ -133,18 +100,7 @@ def generate_safe_policy(
     resources: Union[str, List[str]],
     allow_wildcard: bool = False,
 ) -> Dict:
-    """
-    Generate a minimal IAM policy document.
-
-    Safe-default behavior:
-
-    * Rejects admin-equivalent inputs (``*``, ``*:*``, ``iam:*``, ``sts:*``
-      in actions) and bare ``Resource: "*"`` unless ``allow_wildcard=True``.
-    * Rejects wildcard-suffix actions (``s3:*``, ``ec2:*``, etc.) unless
-      ``allow_wildcard=True``.
-    * Raises ``ValueError`` on empty, non-string, or non-list-of-strings
-      inputs.
-    """
+    """Generate a minimal IAM policy doc; rejects wildcard inputs unless allow_wildcard=True."""
     if isinstance(actions, str):
         actions = [actions]
     if isinstance(resources, str):

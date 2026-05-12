@@ -26,9 +26,7 @@ dummy_assume_policy = """{
     ]
 }"""
 
-# Create the role using your helper function and the stub provider.
-# This is a local Pulumi smoke test, not a real deployment, so we opt out
-# of the safe-defaults boundary requirement.
+# Local Pulumi smoke test against a stub provider; opt out of the boundary requirement.
 role = create_safe_role(
     name="test-safe-role",
     assume_policy=dummy_assume_policy,

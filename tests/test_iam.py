@@ -35,9 +35,7 @@ class TestSafeIAMRole(unittest.TestCase):
         }"""
 
         async def pulumi_test():
-            # Create the role using the Pulumi function. Opt out of the
-            # boundary requirement since this test only checks the shape
-            # of the created resource, not the safe-default enforcement.
+            # Opt out of boundary requirement: this test checks resource shape only.
             role = iam.create_safe_role(
                 "test-role", assume_policy, allow_no_boundary=True
             )
@@ -152,9 +150,7 @@ class TestSafeDefaultsGuards(unittest.TestCase):
         self.assertEqual(doc["Statement"][0]["Action"], ["s3:GetObject"])
 
     def test_generate_safe_policy_allow_wildcard_opt_out(self):
-        # Opt-out lets you produce a policy that is_policy_overly_permissive
-        # will flag. That is intentional; callers who pass allow_wildcard=True
-        # are choosing broader scope knowingly.
+        # Opt-out intentionally produces a doc that is_policy_overly_permissive flags.
         doc = iam.generate_safe_policy(
             actions=["*"], resources=["*"], allow_wildcard=True
         )

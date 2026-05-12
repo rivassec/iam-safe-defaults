@@ -17,9 +17,7 @@ assume_role_policy = json.dumps(
     }
 )
 
-# Create a safe IAM role. Real callers should pass a permissions boundary
-# ARN (``permissions_boundary="arn:aws:iam::<acct>:policy/YourBoundary"``).
-# This example opts out explicitly so it runs as a minimal demo.
+# Demo opts out of boundary requirement; real callers should pass permissions_boundary=<arn>.
 secure_role = safe_iam.create_safe_role(
     "secure-example-role",
     assume_role_policy,
