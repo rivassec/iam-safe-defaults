@@ -16,10 +16,7 @@ Standard Pulumi/AWS resources are permissive by default. This library flips the 
 
 ### Installation
 
-```bash
-pip install .
-
-```
+Clone the repo and import from a Pulumi project in the same venv. The package is not yet published or `pip install`-able; see `examples/basic_usage.py` for the shape of a consuming stack.
 
 ### Basic Usage
 
