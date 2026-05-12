@@ -1,4 +1,5 @@
 import pulumi
+import pulumi_aws as aws
 import json
 import iam_safe_defaults.iam as safe_iam
 
@@ -16,8 +17,14 @@ assume_role_policy = json.dumps(
     }
 )
 
-# Create a safe IAM role
-secure_role = safe_iam.create_safe_role("secure-example-role", assume_role_policy)
+# Create a safe IAM role. Real callers should pass a permissions boundary
+# ARN (``permissions_boundary="arn:aws:iam::<acct>:policy/YourBoundary"``).
+# This example opts out explicitly so it runs as a minimal demo.
+secure_role = safe_iam.create_safe_role(
+    "secure-example-role",
+    assume_role_policy,
+    allow_no_boundary=True,
+)
 
 # Generate a restrictive policy allowing only GetObject on a specific S3 bucket
 policy_doc = safe_iam.generate_safe_policy(
