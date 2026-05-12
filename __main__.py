@@ -26,10 +26,11 @@ dummy_assume_policy = """{
     ]
 }"""
 
-# Create the role using your helper function and the stub provider
+# Local Pulumi smoke test against a stub provider; opt out of the boundary requirement.
 role = create_safe_role(
     name="test-safe-role",
     assume_policy=dummy_assume_policy,
+    allow_no_boundary=True,
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
