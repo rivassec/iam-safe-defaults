@@ -2,6 +2,8 @@
 
 A lightweight Python component library that enforces secure IAM patterns. This library follows the "fail-loud" philosophy: it breaks your build if you attempt to create insecure infrastructure, forcing explicit acknowledgment of security risks.
 
+> 📝 Design rationale: [IAM Roles That Fail Loud: Small Defaults, Big Difference](https://rivassec.com/iam-safe-defaults-fail-loud.html)
+
 ## Why use this?
 
 Standard Pulumi/AWS resources are permissive by default. This library flips the script:
