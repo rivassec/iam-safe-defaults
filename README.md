@@ -28,7 +28,7 @@ import iam_safe_defaults.iam as safe_iam
 
 role = safe_iam.create_safe_role(
     "app-role",
-    assume_role_policy=my_trust_policy,
+    assume_policy=my_trust_policy,
     permissions_boundary="arn:aws:iam::123456789012:policy/AppBoundary"
 )
 
