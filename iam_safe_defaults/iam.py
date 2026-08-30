@@ -10,11 +10,29 @@ _ADMIN_EQUIVALENT_ACTIONS = {"*", "*:*", "iam:*", "sts:*"}
 
 
 def _assume_policy_has_wildcard_principal(assume_policy: str) -> bool:
-    """True if the trust policy grants AssumeRole to a wildcard principal."""
+    """True if the trust policy grants AssumeRole to a wildcard principal.
+
+    Fails loud: a trust policy that cannot be verified is never reported as
+    "no wildcard". A non-string policy (e.g. a ``pulumi.Output``) or a string
+    that is not parseable JSON raises, so ``create_safe_role`` refuses it
+    rather than silently creating the role. Callers who genuinely need an
+    un-inspectable policy opt out with ``allow_wildcard_principal=True``.
+    """
+    if not isinstance(assume_policy, str):
+        raise TypeError(
+            "create_safe_role can only verify a literal JSON-string trust "
+            f"policy; got {type(assume_policy).__name__}. Resolve it to a JSON "
+            "string (e.g. json.dumps(...) or an Output.apply that returns one), "
+            "or pass allow_wildcard_principal=True to opt out explicitly."
+        )
     try:
         doc = json.loads(assume_policy)
-    except (ValueError, TypeError):
-        return False
+    except ValueError as exc:
+        raise ValueError(
+            "create_safe_role could not parse the trust policy as JSON to "
+            "verify its Principal. Fix the policy JSON, or pass "
+            "allow_wildcard_principal=True to opt out explicitly."
+        ) from exc
     for statement in doc.get("Statement", []):
         if statement.get("Effect") != "Allow":
             continue

@@ -95,6 +95,43 @@ class TestSafeDefaultsGuards(unittest.TestCase):
                 allow_no_boundary=True,
             )
 
+    # --- fail-loud guarantee: an un-verifiable trust policy must NOT silently
+    # pass (the detector used to swallow json.loads errors and return False,
+    # so a malformed or Output-typed wildcard trust policy was created without
+    # raising -- a fail-OPEN in a library whose whole thesis is "fail loud").
+    def test_wildcard_principal_check_fails_loud_on_malformed_json(self):
+        malformed = '{"Statement":[{"Effect":"Allow","Principal":{"AWS":"*"}'
+        with self.assertRaises(ValueError):
+            iam._assume_policy_has_wildcard_principal(malformed)
+
+    def test_wildcard_principal_check_fails_loud_on_non_string(self):
+        # e.g. a pulumi.Output-typed trust policy: json.loads raises TypeError,
+        # which must surface, not be swallowed into a "no wildcard" verdict.
+        with self.assertRaises(TypeError):
+            iam._assume_policy_has_wildcard_principal({"Statement": []})
+
+    def test_create_safe_role_fails_loud_on_unparseable_trust_policy(self):
+        with self.assertRaises((ValueError, TypeError)):
+            iam.create_safe_role("r", '{"broken": ', allow_no_boundary=True)
+
+    def test_create_safe_role_opt_out_skips_unverifiable_trust_policy(self):
+        # The explicit opt-out must still bypass the check entirely: an
+        # un-verifiable policy with allow_wildcard_principal=True does not raise
+        # the wildcard/type guard (caller took responsibility).
+        try:
+            iam.create_safe_role(
+                "r",
+                '{"broken": ',
+                allow_no_boundary=True,
+                allow_wildcard_principal=True,
+            )
+        except (ValueError, TypeError) as exc:
+            self.fail(f"opt-out should skip trust-policy verification, raised: {exc}")
+        except Exception:
+            # Any non-guard error (e.g. Pulumi resource construction outside a
+            # stack) is fine -- it proves the guard did not reject the input.
+            pass
+
     def test_is_policy_overly_permissive_catches_wildcard_suffix(self):
         doc = {
             "Statement": [
